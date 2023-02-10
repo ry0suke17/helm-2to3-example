@@ -1,0 +1,52 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: prow-hook
+spec:
+  selector:
+    app: prow-hook
+  ports:
+    - port: 8888
+  type: NodePort
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prow-deck
+spec:
+  selector:
+    app: prow-deck
+  ports:
+    - port: 80
+      targetPort: 8080
+  type: NodePort
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prow-tide
+spec:
+  selector:
+    app: prow-tide
+  ports:
+    - port: 80
+      targetPort: 8888
+  type: NodePort
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: prow-ghproxy
+  name: prow-ghproxy
+spec:
+  ports:
+    - name: main
+      port: 80
+      protocol: TCP
+      targetPort: 8888
+    - name: metrics
+      port: 9090
+  selector:
+    app: prow-ghproxy
+  type: ClusterIP

@@ -1,0 +1,465 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prow-hook
+  labels:
+    app: prow-hook
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: prow-hook
+  template:
+    metadata:
+      labels:
+        app: prow-hook
+    spec:
+      serviceAccountName: "prow-hook"
+      terminationGracePeriodSeconds: 180
+      containers:
+        - name: prow-hook
+          image: gcr.io/k8s-prow/hook:v20210601-df2711fc5c
+          imagePullPolicy: Always
+          args:
+            - --dry-run=false
+            - --config-path=/etc/config/config.yaml
+            - --github-token-path=/etc/github/token
+            - --github-endpoint=http://prow-ghproxy
+            - --github-endpoint=https://api.github.com
+          ports:
+            - name: http
+              containerPort: 8888
+          volumeMounts:
+            - name: hmac
+              mountPath: /etc/webhook
+              readOnly: true
+            - name: github-token
+              mountPath: /etc/github
+              readOnly: true
+            - name: config
+              mountPath: /etc/config
+              readOnly: true
+            - name: plugins
+              mountPath: /etc/plugins
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 3
+            periodSeconds: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz/ready
+              port: 8081
+            initialDelaySeconds: 10
+            periodSeconds: 3
+            timeoutSeconds: 600
+      volumes:
+        - name: hmac
+          secret:
+            secretName: prow-hmac-token
+        - name: github-token
+          secret:
+            secretName: prow-github-token
+        - name: config
+          configMap:
+            name: prow-config
+        - name: plugins
+          configMap:
+            name: prow-plugins
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prow-sinker
+  labels:
+    app: prow-sinker
+spec:
+  selector:
+    matchLabels:
+      app: prow-sinker
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: prow-sinker
+    spec:
+      serviceAccountName: "prow-sinker"
+      containers:
+        - name: prow-sinker
+          image: gcr.io/k8s-prow/sinker:v20210601-df2711fc5c
+          args:
+            - --config-path=/etc/config/config.yaml
+            - --dry-run=false
+          volumeMounts:
+            - name: config
+              mountPath: /etc/config
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: prow-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prow-deck
+  labels:
+    app: prow-deck
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: prow-deck
+  template:
+    metadata:
+      labels:
+        app: prow-deck
+    spec:
+      serviceAccountName: "prow-deck"
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: prow-deck
+          image: gcr.io/k8s-prow/deck:v20210601-df2711fc5c
+          args:
+            - --config-path=/etc/config/config.yaml
+            - --plugin-config=/etc/plugins/plugins.yaml
+            - --tide-url=http://prow-tide/
+            - --hook-url=http://prow-hook:8888/plugin-help
+            - --github-token-path=/etc/github/token
+            - --github-endpoint=http://prow-ghproxy
+            - --github-endpoint=https://api.github.com
+            - --github-graphql-endpoint=http://prow-ghproxy/graphql
+            - --spyglass=true
+          ports:
+            - name: http
+              containerPort: 8080
+          volumeMounts:
+            - name: config
+              mountPath: /etc/config
+              readOnly: true
+            - name: github-token
+              mountPath: /etc/github
+              readOnly: true
+            - name: plugins
+              mountPath: /etc/plugins
+              readOnly: true
+            - name: gcs-credentials
+              mountPath: /etc/gcs-credentials
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 3
+            periodSeconds: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz/ready
+              port: 8081
+            initialDelaySeconds: 10
+            periodSeconds: 3
+            timeoutSeconds: 600
+      volumes:
+        - name: config
+          configMap:
+            name: prow-config
+        - name: github-token
+          secret:
+            secretName: prow-github-token
+        - name: plugins
+          configMap:
+            name: prow-plugins
+        - name: gcs-credentials
+          secret:
+            secretName: prow-gcs-credentials
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prow-horologium
+  labels:
+    app: prow-horologium
+spec:
+  replicas: 1 # Do not scale up.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: prow-horologium
+  template:
+    metadata:
+      labels:
+        app: prow-horologium
+    spec:
+      serviceAccountName: "prow-horologium"
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: prow-horologium
+          image: gcr.io/k8s-prow/horologium:v20210601-df2711fc5c
+          args:
+            - --dry-run=false
+            - --config-path=/etc/config/config.yaml
+          volumeMounts:
+            - name: config
+              mountPath: /etc/config
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: prow-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prow-tide
+  labels:
+    app: prow-tide
+spec:
+  replicas: 1 # Do not scale up.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: prow-tide
+  template:
+    metadata:
+      labels:
+        app: prow-tide
+    spec:
+      serviceAccountName: "prow-tide"
+      containers:
+        - name: prow-tide
+          image: gcr.io/k8s-prow/tide:v20210601-df2711fc5c
+          args:
+            - --dry-run=false
+            - --config-path=/etc/config/config.yaml
+            - --github-token-path=/etc/github/token
+            - --github-endpoint=http://prow-ghproxy
+            - --github-endpoint=https://api.github.com
+            - --github-graphql-endpoint=http://prow-ghproxy/graphql
+            - --gcs-credentials-file=/etc/gcs-credentials/service-account.json
+            - --status-path={{ .Values.deployment.gcsBucket }}/tide-status
+            - --history-uri={{ .Values.deployment.gcsBucket }}/tide-history.json
+          ports:
+            - name: http
+              containerPort: 8888
+          volumeMounts:
+            - name: github-token
+              mountPath: /etc/github
+              readOnly: true
+            - name: config
+              mountPath: /etc/config
+              readOnly: true
+            - name: gcs-credentials
+              mountPath: /etc/gcs-credentials
+              readOnly: true
+      volumes:
+        - name: github-token
+          secret:
+            secretName: prow-github-token
+        - name: config
+          configMap:
+            name: prow-config
+        - name: gcs-credentials
+          secret:
+            secretName: prow-gcs-credentials
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prow-statusreconciler
+  labels:
+    app: prow-statusreconciler
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prow-statusreconciler
+  template:
+    metadata:
+      labels:
+        app: prow-statusreconciler
+    spec:
+      serviceAccountName: prow-statusreconciler
+      terminationGracePeriodSeconds: 180
+      containers:
+        - name: prow-statusreconciler
+          image: gcr.io/k8s-prow/status-reconciler:v20210601-df2711fc5c
+          args:
+            - --dry-run=false
+            - --continue-on-error=true
+            - --plugin-config=/etc/plugins/plugins.yaml
+            - --config-path=/etc/config/config.yaml
+            - --github-token-path=/etc/github/token
+            - --github-endpoint=http://prow-ghproxy
+            - --github-endpoint=https://api.github.com
+            - --gcs-credentials-file=/etc/gcs-credentials/service-account.json
+            - --status-path=gs://status-reconciler/status-reconciler-status
+          volumeMounts:
+            - name: github-token
+              mountPath: /etc/github
+              readOnly: true
+            - name: config
+              mountPath: /etc/config
+              readOnly: true
+            - name: plugins
+              mountPath: /etc/plugins
+              readOnly: true
+            - name: gcs-credentials
+              mountPath: /etc/gcs-credentials
+              readOnly: true
+      volumes:
+        - name: github-token
+          secret:
+            secretName: prow-github-token
+        - name: config
+          configMap:
+            name: prow-config
+        - name: plugins
+          configMap:
+            name: prow-plugins
+        - name: gcs-credentials
+          secret:
+            secretName: prow-gcs-credentials
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prow-ghproxy
+  labels:
+    app: prow-ghproxy
+spec:
+  selector:
+    matchLabels:
+      app: prow-ghproxy
+  strategy:
+    type: Recreate
+  # GHProxy does not support HA
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: prow-ghproxy
+    spec:
+      containers:
+        - name: prow-ghproxy
+          image: gcr.io/k8s-prow/ghproxy:v20210601-df2711fc5c
+          args:
+            - --cache-dir=/cache
+            - --cache-sizeGB=99
+            - --push-gateway=pushgateway
+            - --serve-metrics=true
+          ports:
+            - containerPort: 8888
+          volumeMounts:
+            - name: cache
+              mountPath: /cache
+      volumes:
+        - name: cache
+          persistentVolumeClaim:
+            claimName: prow-ghproxy
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prow-controller-manager
+  labels:
+    app: prow-controller-manager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prow-controller-manager
+  template:
+    metadata:
+      labels:
+        app: prow-controller-manager
+    spec:
+      serviceAccountName: prow-controller-manager
+      containers:
+        - name: prow-controller-manager
+          args:
+            - --dry-run=false
+            - --config-path=/etc/config/config.yaml
+            - --github-token-path=/etc/github/token
+            - --github-endpoint=http://prow-ghproxy
+            - --github-endpoint=https://api.github.com
+            - --enable-controller=plank
+          image: gcr.io/k8s-prow/prow-controller-manager:v20210601-df2711fc5c
+          volumeMounts:
+            - name: github-token
+              mountPath: /etc/github
+              readOnly: true
+            - name: config
+              mountPath: /etc/config
+              readOnly: true
+      volumes:
+        - name: github-token
+          secret:
+            secretName: prow-github-token
+        - name: config
+          configMap:
+            name: prow-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prow-crier
+  labels:
+    app: prow-crier
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prow-crier
+  template:
+    metadata:
+      labels:
+        app: prow-crier
+    spec:
+      serviceAccountName: prow-crier
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: prow-crier
+          image: gcr.io/k8s-prow/crier:v20210601-df2711fc5c
+          args:
+            - --blob-storage-workers=10
+            - --config-path=/etc/config/config.yaml
+            - --gcs-credentials-file=/etc/gcs-credentials/service-account.json
+            - --github-endpoint=http://prow-ghproxy
+            - --github-endpoint=https://api.github.com
+            - --github-token-path=/etc/github/token
+            - --github-workers=10
+            - --kubernetes-blob-storage-workers=10
+          volumeMounts:
+            - name: config
+              mountPath: /etc/config
+              readOnly: true
+            - name: github-token
+              mountPath: /etc/github
+              readOnly: true
+            - name: gcs-credentials
+              mountPath: /etc/gcs-credentials
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: prow-config
+        - name: github-token
+          secret:
+            secretName: prow-github-token
+        - name: gcs-credentials
+          secret:
+            secretName: prow-gcs-credentials
