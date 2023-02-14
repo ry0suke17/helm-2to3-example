@@ -19,7 +19,6 @@ dev/gke/cluster/create: dev/gcp/project/check
 		--node-locations us-west1-a
 
 # もし pv, pvc の利用があった場合は明示的 kubectl delete pvc としてあげたほうがいい。
-# ref. https://www.notion.so/4b14d440262f4bc49999c846237ad4ce
 dev/gke/cluster/delete: dev/gcp/project/check
 	gcloud container clusters delete ${GKE_CLUSTER_NAME} \
 		--zone us-west1-a
