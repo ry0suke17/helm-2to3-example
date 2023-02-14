@@ -273,10 +273,10 @@ ingress:
 resources:
   requests:
     memory: 200Mi
-    cpu: 100m
+    cpu: 200m
   limits:
     memory: 200Mi
-    cpu: 100m
+    cpu: 200m
 
 ## Embedded data volume & volumeMount (default working)
 volumeClaim:

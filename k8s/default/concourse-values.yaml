@@ -654,7 +654,7 @@ web:
   ##
   resources:
     requests:
-      cpu: "100m"
+      cpu: "200m"
       memory: "128Mi"
 
   ## Configure additional environment variables for the
@@ -782,7 +782,7 @@ worker:
   ##
   resources:
     requests:
-      cpu: "100m"
+      cpu: "500m"
       memory: "512Mi"
 
   ## Configure additional environment variables for the
@@ -967,7 +967,7 @@ rbac:
   create: true
 
   # rbac version
-  apiVersion: v1beta1
+  apiVersion: v1
 
   ## The name of the service account to use for web pods if rbac.create is false
   ##
