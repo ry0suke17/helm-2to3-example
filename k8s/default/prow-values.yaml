@@ -13,14 +13,14 @@ deployment:
 
 secret:
   githubToken:
-    enabled: true
+    enabled: false
     value: github-token
   hmacToken:
-    enabled: true
+    enabled: false
     # Generate via `openssl rand -hex 20`. This is the secret used in the GitHub webhook configuration
     value: hmac-token
   gcsCredentials:
-    enabled: true
+    enabled: false
     # ref: https://github.com/kubernetes/test-infra/blob/master/prow/getting_started_deploy.md#configure-a-gcs-bucket
     value: gcs-credentials
 
