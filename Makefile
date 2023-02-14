@@ -1,18 +1,18 @@
-DEV_GCP_PROJECT_ID=playground-361304
+DEV_GCP_PROJECT_ID=test-project
 
 GKE_CLUSTER_VERSION=1.22.15-gke.1000
 
 GKE_CLUSTER_NAME=test-cluster
 
 dev/gcp/project/check:
-	 if [ `gcloud config list 2> /dev/null | grep "project = playground-361304" | wc -l` -eq 0 ]; then >&2 echo "ERROR: project is not tb-dev"; exit 1; fi
+	 if [ `gcloud config list 2> /dev/null | grep "project = ${DEV_GCP_PROJECT_ID}" | wc -l` -eq 0 ]; then >&2 echo "ERROR: project is not ${DEV_GCP_PROJECT_ID}"; exit 1; fi
 
 # GCE 料金については以下を参照。
 # ref. https://cloud.google.com/compute/all-pricing
 dev/gke/cluster/create: dev/gcp/project/check
 	gcloud container clusters create ${GKE_CLUSTER_NAME} \
 		--cluster-version ${GKE_CLUSTER_VERSION} \
-		--machine-type e2-micro \
+		--machine-type e2-medium \
 		--num-nodes 1 \
 		--disk-size 10GB \
 		--zone us-west1-a \
@@ -28,9 +28,9 @@ dev/gke/setup: \
 	dev/gcp/project/check \
 	dev/gke/cluster/create
 
-helm/init:
+dev/helm/v2/init: dev/gcp/project/check
 	kubectl apply -f k8s/kube-system/tiller-clusterrolebinding.yaml
-	helm init --service-account tiller --tiller-namespace kube-system
+	helm-v2.17.0 init --service-account tiller --tiller-namespace kube-system
 
-helm/install: \
-	helm-v2.17.0 upgrade atlantis stable/atlantis -f k8s/default/atlantis.yaml --version 3.8.2 --install --recreate-pods
+dev/helm/v2/install: dev/gcp/project/check
+	helm-v2.17.0 upgrade atlantis ./k8s/default/atlantis -f ./k8s/default/atlantis-values.yaml --install --recreate-pods
