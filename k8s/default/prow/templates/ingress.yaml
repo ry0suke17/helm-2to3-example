@@ -1,4 +1,4 @@
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: prow
@@ -14,10 +14,14 @@ spec:
           - path: /
             pathType: Prefix
             backend:
-              serviceName: prow-deck
-              servicePort: 80
+              service:
+                name: prow-deck
+                port:
+                  number: 80
           - path: /hook
             pathType: Prefix
             backend:
-              serviceName: prow-hook
-              servicePort: 8888
+              service:
+                name: prow-hook
+                port:
+                  number: 8888
