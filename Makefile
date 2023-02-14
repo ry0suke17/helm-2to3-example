@@ -12,8 +12,8 @@ dev/gcp/project/check:
 dev/gke/cluster/create: dev/gcp/project/check
 	gcloud container clusters create ${GKE_CLUSTER_NAME} \
 		--cluster-version ${GKE_CLUSTER_VERSION} \
-		--machine-type e2-medium \
-		--num-nodes 1 \
+		--machine-type e2-small \
+		--num-nodes 3 \
 		--disk-size 10GB \
 		--zone us-west1-a \
 		--node-locations us-west1-a
@@ -23,10 +23,6 @@ dev/gke/cluster/create: dev/gcp/project/check
 dev/gke/cluster/delete: dev/gcp/project/check
 	gcloud container clusters delete ${GKE_CLUSTER_NAME} \
 		--zone us-west1-a
-
-dev/gke/setup: \
-	dev/gcp/project/check \
-	dev/gke/cluster/create
 
 dev/helm/v2/init: dev/gcp/project/check
 	kubectl apply -f k8s/kube-system/tiller-clusterrolebinding.yaml
