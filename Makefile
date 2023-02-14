@@ -32,5 +32,7 @@ dev/helm/v2/init: dev/gcp/project/check
 	kubectl apply -f k8s/kube-system/tiller-clusterrolebinding.yaml
 	helm-v2.17.0 init --service-account tiller --tiller-namespace kube-system
 
+# atlantis に関しては secret を作成しておかないとデプロイできない
 dev/helm/v2/install: dev/gcp/project/check
 	helm-v2.17.0 upgrade atlantis ./k8s/default/atlantis -f ./k8s/default/atlantis-values.yaml --install --recreate-pods
+	helm-v2.17.0 upgrade concourse ./k8s/default/concourse -f ./k8s/default/concourse-values.yaml --install --recreate-pods
