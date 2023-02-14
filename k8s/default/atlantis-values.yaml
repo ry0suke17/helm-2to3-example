@@ -7,11 +7,12 @@
 # atlantisUrl: http://10.0.0.0
 
 # Replace this with your own repo allowlist:
-orgAllowlist: <replace-me>
+orgAllowlist: github.com/ry0suke17/*
 # logLevel: "debug"
 
 # If using GitHub, specify like the following:
-github: {}
+github:
+  user: ry0suke17
 # github:
 #   user: foo
 #   token: bar
@@ -58,6 +59,7 @@ github: {}
 # (The chart will perform the base64 encoding for you for values that are stored in secrets.)
 
 # If managing secrets outside the chart for the webhook, use this variable to reference the secret name
+vcsSecretName: 'atlantis-vcs'
 # vcsSecretName: 'mysecret'
 
 # When referencing Terraform modules in private repositories, it may be helpful
@@ -111,9 +113,9 @@ serviceAccountSecrets:
 ## -------------------------- ##
 
 image:
-  repository: ghcr.io/runatlantis/atlantis
+  repository: runatlantis/atlantis
   # if not set appVersion field from Chart.yaml is used
-  tag: ""
+  tag: v0.8.2
   pullPolicy: IfNotPresent
 
 ## Optionally specify an array of imagePullSecrets.
@@ -270,10 +272,10 @@ ingress:
 
 resources:
   requests:
-    memory: 1Gi
+    memory: 200Mi
     cpu: 100m
   limits:
-    memory: 1Gi
+    memory: 200Mi
     cpu: 100m
 
 ## Embedded data volume & volumeMount (default working)
